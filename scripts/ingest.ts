@@ -34,6 +34,7 @@ if (fsNode.existsSync(envPath)) {
   } else {
     console.log('✅ Environment variables loaded successfully');
     console.log(`   OPENAI_API_KEY: ${process.env.OPENAI_API_KEY?.substring(0, 20)}...`);
+    console.log(`   GEMINI_API_KEY: ${process.env.GEMINI_API_KEY?.substring(0, 20)}...`);
     console.log(`   SUPABASE_URL: ${process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30)}...`);
   }
 } else {

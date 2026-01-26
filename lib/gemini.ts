@@ -1,7 +1,24 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import fs from 'fs';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+// Lazy-load the Gemini client to ensure env vars are loaded first
+let genAI: GoogleGenerativeAI | null = null;
+
+function getGeminiClient(): GoogleGenerativeAI {
+  if (!genAI) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY environment variable is not set. Please check your .env.local file.');
+    }
+    if (apiKey.trim().length === 0) {
+      throw new Error('GEMINI_API_KEY is empty. Please check your .env.local file.');
+    }
+    // Log first few characters to verify key is loaded (for debugging)
+    console.log(`  → Using Gemini API key: ${apiKey.substring(0, 10)}... (length: ${apiKey.length})`);
+    genAI = new GoogleGenerativeAI(apiKey);
+  }
+  return genAI;
+}
 
 export const GEMINI_PROMPT = `
 You are analyzing marketing campaign images for a credit card. These images form a single campaign and should be analyzed together as a cohesive unit.
@@ -77,7 +94,8 @@ export interface GeminiAnalysis {
  * When multiple images are provided, they are analyzed together as a cohesive unit.
  */
 export async function analyzeImage(imagePath: string | string[]): Promise<GeminiAnalysis> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+  const client = getGeminiClient();
+  const model = client.getGenerativeModel({ model: 'gemini-1.5-pro' });
 
   const imagePaths = Array.isArray(imagePath) ? imagePath : [imagePath];
 
@@ -123,6 +141,21 @@ export async function analyzeImage(imagePath: string | string[]): Promise<Gemini
     return analysis;
   } catch (error) {
     console.error('Error analyzing image(s) with Gemini:', error);
-    throw new Error(`Failed to analyze image(s): ${error instanceof Error ? error.message : 'Unknown error'}`);
+    
+    // Provide more helpful error messages
+    if (error instanceof Error) {
+      if (error.message.includes('API key not valid') || error.message.includes('API_KEY_INVALID')) {
+        throw new Error(
+          `Gemini API key is invalid. Please verify:\n` +
+          `  1. The GEMINI_API_KEY in .env.local is correct\n` +
+          `  2. The API key has not expired\n` +
+          `  3. The API key has the necessary permissions for Gemini API\n` +
+          `  4. The API key starts with "AIza" (typical format)\n` +
+          `  Original error: ${error.message}`
+        );
+      }
+      throw new Error(`Failed to analyze image(s): ${error.message}`);
+    }
+    throw new Error(`Failed to analyze image(s): Unknown error`);
   }
 }
