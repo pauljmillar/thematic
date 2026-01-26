@@ -71,3 +71,16 @@ input[type="search"] {
   background-repeat: no-repeat !important;
   background-position: none !important;
 }
+
+/* Hide Next.js dev indicator overlay (development only) */
+/* This will only affect dev mode - production builds don't have this */
+#__next-build-watcher,
+[data-nextjs-dialog],
+[data-nextjs-toast] {
+  display: none !important;
+}
+
+/* Alternative: Hide the dev menu button specifically */
+button[data-nextjs-dialog-trigger] {
+  display: none !important;
+}
