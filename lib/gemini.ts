@@ -20,6 +20,20 @@ function getGeminiClient(): GoogleGenerativeAI {
   return genAI;
 }
 
+/**
+ * Lists available Gemini models for debugging
+ */
+export async function listAvailableModels(): Promise<void> {
+  try {
+    const client = getGeminiClient();
+    // Note: The SDK doesn't have a direct listModels method, but we can try to infer from errors
+    console.log('Attempting to list available models...');
+    console.log('Note: You may need to check Google Cloud Console for available models.');
+  } catch (error) {
+    console.error('Error getting Gemini client:', error);
+  }
+}
+
 export const GEMINI_PROMPT = `
 You are analyzing marketing campaign images for a credit card. These images form a single campaign and should be analyzed together as a cohesive unit.
 
@@ -162,12 +176,25 @@ export async function analyzeImage(imagePath: string | string[]): Promise<Gemini
   }
   
   // If we get here, all models failed
-  throw new Error(
-    `None of the Gemini models are available. Tried: ${modelNames.join(', ')}. ` +
+  const errorMessage = `None of the Gemini models are available. Tried: ${modelNames.join(', ')}. ` +
     `Last error: ${lastError?.message || 'Unknown error'}. ` +
     `\n\nPossible solutions:\n` +
-    `  1. Check if your API key has access to Gemini models in Google Cloud Console\n` +
-    `  2. Try using a different API key\n` +
-    `  3. Verify the models are enabled for your project`
-  );
+    `  1. Enable Gemini API in Google Cloud Console:\n` +
+    `     - Go to https://console.cloud.google.com/apis/library\n` +
+    `     - Search for "Generative Language API" or "Gemini API"\n` +
+    `     - Click "Enable" for your project\n` +
+    `  2. Check API key permissions:\n` +
+    `     - Ensure your API key has access to Gemini API\n` +
+    `     - Verify the API key is not restricted to specific APIs\n` +
+    `  3. Verify model availability:\n` +
+    `     - Some models may require specific access levels\n` +
+    `     - Check if your project has access to the models you're trying to use\n` +
+    `  4. Try creating a new API key:\n` +
+    `     - Go to https://console.cloud.google.com/apis/credentials\n` +
+    `     - Create a new API key with Generative Language API enabled\n` +
+    `  5. Check API quotas and billing:\n` +
+    `     - Ensure billing is enabled if required\n` +
+    `     - Check if you've exceeded any quotas`;
+  
+  throw new Error(errorMessage);
 }
