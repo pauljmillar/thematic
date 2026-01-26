@@ -105,7 +105,12 @@ export default function ChatPanel({ onQuery, isLoading }: ChatPanelProps) {
             className="flex-1 resize-none rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-400"
             rows={1}
             disabled={isLoading}
-            style={{ color: 'inherit' }}
+            style={{ 
+              color: '#111827',
+              fontFamily: 'inherit',
+              fontSize: 'inherit',
+              lineHeight: 'inherit'
+            }}
           />
           <button
             type="submit"

@@ -51,3 +51,23 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Prevent icons in textareas */
+textarea {
+  position: relative;
+}
+
+textarea::before,
+textarea::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* Ensure no icons appear in input fields */
+textarea,
+input[type="text"],
+input[type="search"] {
+  background-image: none !important;
+  background-repeat: no-repeat !important;
+  background-position: none !important;
+}

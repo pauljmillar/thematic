@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { type Campaign } from '@/lib/supabase/client';
 
 interface CampaignCardProps {
@@ -27,18 +26,17 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       {campaign.image_s3_urls && campaign.image_s3_urls.length > 0 && (
-        <div className="relative w-full h-48 bg-gray-100">
-          <Image
+        <div className="relative w-full h-48 bg-gray-100 overflow-hidden">
+          <img
             src={campaign.image_s3_urls[0]}
             alt={campaign.offer || 'Campaign image'}
-            fill
-            className="object-cover"
-            unoptimized
+            className="w-full h-full object-cover"
             onError={(e) => {
               console.error('Image failed to load:', campaign.image_s3_urls[0]);
               // Fallback: hide the image container on error
               e.currentTarget.style.display = 'none';
             }}
+            crossOrigin="anonymous"
           />
         </div>
       )}
