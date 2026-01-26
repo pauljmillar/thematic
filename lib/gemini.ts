@@ -95,7 +95,9 @@ export interface GeminiAnalysis {
  */
 export async function analyzeImage(imagePath: string | string[]): Promise<GeminiAnalysis> {
   const client = getGeminiClient();
-  const model = client.getGenerativeModel({ model: 'gemini-1.5-pro' });
+  
+  // Try models in order: flash (faster, more available), then pro
+  const modelNames = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
 
   const imagePaths = Array.isArray(imagePath) ? imagePath : [imagePath];
 
@@ -114,48 +116,57 @@ export async function analyzeImage(imagePath: string | string[]): Promise<Gemini
     };
   });
 
-  try {
-    // Build content array: prompt first, then all images
-    const content = [GEMINI_PROMPT, ...imageParts];
-    
-    const result = await model.generateContent(content);
+  // Build content array: prompt first, then all images
+  const content = [GEMINI_PROMPT, ...imageParts];
+  
+  // Try each model until one works
+  let lastError: Error | null = null;
+  for (const modelName of modelNames) {
+    try {
+      console.log(`  → Trying model: ${modelName}...`);
+      const model = client.getGenerativeModel({ model: modelName });
+        const response = result.response;
+      const text = response.text();
 
-    const response = result.response;
-    const text = response.text();
-
-    // Parse JSON response (handle markdown code blocks if present)
-    let jsonText = text.trim();
-    if (jsonText.startsWith('```json')) {
-      jsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-    } else if (jsonText.startsWith('```')) {
-      jsonText = jsonText.replace(/^```\n?/, '').replace(/\n?```$/, '');
-    }
-
-    const analysis = JSON.parse(jsonText) as GeminiAnalysis;
-
-    // Validate required fields
-    if (!analysis.company || !analysis.brand || !analysis.channel) {
-      throw new Error('Missing required fields in Gemini response');
-    }
-
-    return analysis;
-  } catch (error) {
-    console.error('Error analyzing image(s) with Gemini:', error);
-    
-    // Provide more helpful error messages
-    if (error instanceof Error) {
-      if (error.message.includes('API key not valid') || error.message.includes('API_KEY_INVALID')) {
-        throw new Error(
-          `Gemini API key is invalid. Please verify:\n` +
-          `  1. The GEMINI_API_KEY in .env.local is correct\n` +
-          `  2. The API key has not expired\n` +
-          `  3. The API key has the necessary permissions for Gemini API\n` +
-          `  4. The API key starts with "AIza" (typical format)\n` +
-          `  Original error: ${error.message}`
-        );
+      // Parse JSON response (handle markdown code blocks if present)
+      let jsonText = text.trim();
+      if (jsonText.startsWith('```json')) {
+        jsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+      } else if (jsonText.startsWith('```')) {
+        jsonText = jsonText.replace(/^```\n?/, '').replace(/\n?```$/, '');
       }
-      throw new Error(`Failed to analyze image(s): ${error.message}`);
+
+      const analysis = JSON.parse(jsonText) as GeminiAnalysis;
+
+      // Validate required fields
+      if (!analysis.company || !analysis.brand || !analysis.channel) {
+        throw new Error('Missing required fields in Gemini response');
+      }
+
+      console.log(`  ✓ Successfully used model: ${modelName}`);
+      return analysis;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      // If it's a model not found error, try the next model
+      if (error instanceof Error && 
+          (error.message.includes('not found') || 
+           error.message.includes('404') ||
+           error.message.includes('is not supported'))) {
+        console.log(`  → Model ${modelName} not available, trying next...`);
+        continue;
+      }
+      // For other errors (API key, parsing, etc.), throw immediately
+      throw error;
     }
-    throw new Error(`Failed to analyze image(s): Unknown error`);
   }
+  
+  // If we get here, all models failed
+  throw new Error(
+    `None of the Gemini models are available. Tried: ${modelNames.join(', ')}. ` +
+    `Last error: ${lastError?.message || 'Unknown error'}. ` +
+    `\n\nPossible solutions:\n` +
+    `  1. Check if your API key has access to Gemini models in Google Cloud Console\n` +
+    `  2. Try using a different API key\n` +
+    `  3. Verify the models are enabled for your project`
+  );
 }
