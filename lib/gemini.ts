@@ -125,7 +125,8 @@ export async function analyzeImage(imagePath: string | string[]): Promise<Gemini
     try {
       console.log(`  → Trying model: ${modelName}...`);
       const model = client.getGenerativeModel({ model: modelName });
-        const response = result.response;
+      const result = await model.generateContent(content);
+      const response = result.response;
       const text = response.text();
 
       // Parse JSON response (handle markdown code blocks if present)
