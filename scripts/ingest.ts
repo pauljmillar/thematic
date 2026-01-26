@@ -36,6 +36,9 @@ if (fsNode.existsSync(envPath)) {
     console.log(`   OPENAI_API_KEY: ${process.env.OPENAI_API_KEY?.substring(0, 20)}...`);
     console.log(`   GEMINI_API_KEY: ${process.env.GEMINI_API_KEY?.substring(0, 20)}...`);
     console.log(`   SUPABASE_URL: ${process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30)}...`);
+    console.log(`   AWS_ACCESS_KEY_ID: ${process.env.AWS_ACCESS_KEY_ID?.substring(0, 8)}...`);
+    console.log(`   AWS_REGION: ${process.env.AWS_REGION || 'NOT SET'}`);
+    console.log(`   AWS_S3_BUCKET_NAME: ${process.env.AWS_S3_BUCKET_NAME || 'NOT SET'}`);
   }
 } else {
   console.error(`❌ Error: .env.local not found at ${envPath}`);
