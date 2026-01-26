@@ -11,14 +11,30 @@ if (fsNode.existsSync(envPath)) {
     console.error('Error loading .env.local:', result.error);
     process.exit(1);
   }
-  // Verify key is loaded
-  if (!process.env.OPENAI_API_KEY) {
-    console.error('❌ Error: OPENAI_API_KEY not found in .env.local');
+  // Verify required keys are loaded
+  const requiredVars = [
+    'OPENAI_API_KEY',
+    'NEXT_PUBLIC_SUPABASE_URL',
+    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'GEMINI_API_KEY',
+    'AWS_ACCESS_KEY_ID',
+    'AWS_SECRET_ACCESS_KEY',
+    'AWS_REGION',
+    'AWS_S3_BUCKET_NAME',
+  ];
+  
+  const missingVars = requiredVars.filter((varName) => !process.env[varName]);
+  
+  if (missingVars.length > 0) {
+    console.error('❌ Error: Missing required environment variables:');
+    missingVars.forEach((varName) => console.error(`   - ${varName}`));
     console.error(`   Checked path: ${envPath}`);
     process.exit(1);
   } else {
     console.log('✅ Environment variables loaded successfully');
-    console.log(`   OPENAI_API_KEY: ${process.env.OPENAI_API_KEY.substring(0, 20)}...`);
+    console.log(`   OPENAI_API_KEY: ${process.env.OPENAI_API_KEY?.substring(0, 20)}...`);
+    console.log(`   SUPABASE_URL: ${process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30)}...`);
   }
 } else {
   console.error(`❌ Error: .env.local not found at ${envPath}`);
