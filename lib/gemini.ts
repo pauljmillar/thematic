@@ -110,8 +110,16 @@ export interface GeminiAnalysis {
 export async function analyzeImage(imagePath: string | string[]): Promise<GeminiAnalysis> {
   const client = getGeminiClient();
   
-  // Try models in order: flash (faster, more available), then pro
-  const modelNames = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
+  // Try models in order: newer stable models first, then experimental
+  // Based on available models from API (as of 2025)
+  const modelNames = [
+    'gemini-2.5-flash',        // Stable, fast, multimodal
+    'gemini-2.0-flash',        // Stable alternative
+    'gemini-2.0-flash-exp',    // Experimental (works per test)
+    'gemini-2.5-pro',          // More capable, stable
+    'gemini-flash-latest',     // Always latest flash
+    'gemini-pro-latest',       // Always latest pro
+  ];
 
   const imagePaths = Array.isArray(imagePath) ? imagePath : [imagePath];
 
