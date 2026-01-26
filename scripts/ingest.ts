@@ -1,7 +1,24 @@
-// Load environment variables from .env.local
-import { config } from 'dotenv';
-import { join } from 'path';
-config({ path: join(process.cwd(), '.env.local') });
+// Load environment variables from .env.local FIRST
+// Using require to ensure synchronous loading before any ES module imports
+const dotenv = require('dotenv');
+const pathNode = require('path');
+const fsNode = require('fs');
+
+const envPath = pathNode.join(process.cwd(), '.env.local');
+if (fsNode.existsSync(envPath)) {
+  const result = dotenv.config({ path: envPath });
+  if (result.error) {
+    console.error('Error loading .env.local:', result.error);
+    process.exit(1);
+  }
+  // Verify key is loaded
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('Warning: OPENAI_API_KEY not found in .env.local');
+  }
+} else {
+  console.error(`Error: .env.local not found at ${envPath}`);
+  process.exit(1);
+}
 
 import fs from 'fs';
 import path from 'path';

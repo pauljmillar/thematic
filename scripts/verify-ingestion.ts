@@ -1,7 +1,20 @@
-// Load environment variables from .env.local
-import { config } from 'dotenv';
-import { join } from 'path';
-config({ path: join(process.cwd(), '.env.local') });
+// Load environment variables from .env.local FIRST
+// Using require to ensure synchronous loading before any ES module imports
+const path = require('path');
+const fs = require('fs');
+const dotenv = require('dotenv');
+
+const envPath = path.join(process.cwd(), '.env.local');
+if (fs.existsSync(envPath)) {
+  const result = dotenv.config({ path: envPath });
+  if (result.error) {
+    console.error('Error loading .env.local:', result.error);
+    process.exit(1);
+  }
+} else {
+  console.error(`Error: .env.local not found at ${envPath}`);
+  process.exit(1);
+}
 
 import { supabaseAdmin } from '../lib/supabase/client';
 
