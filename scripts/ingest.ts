@@ -1,3 +1,8 @@
+// Load environment variables from .env.local
+import { config } from 'dotenv';
+import { join } from 'path';
+config({ path: join(process.cwd(), '.env.local') });
+
 import fs from 'fs';
 import path from 'path';
 import { analyzeImage, type GeminiAnalysis } from '../lib/gemini';
