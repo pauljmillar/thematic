@@ -5,11 +5,18 @@ import { uploadToS3 } from '../lib/s3';
 import { embedText } from '../lib/embeddings';
 import { supabaseAdmin } from '../lib/supabase/client';
 
-const IMAGE_DIR = './images';
+// Get directory from command line argument, default to test directory for safety
+const args = process.argv.slice(2);
+const IMAGE_DIR = args[0] || './images/test';
 
 interface ImageFile {
   name: string;
   path: string;
+}
+
+interface ImageGroup {
+  baseName: string;
+  images: ImageFile[];
 }
 
 function getImageFiles(dir: string): ImageFile[] {
@@ -25,7 +32,52 @@ function getImageFiles(dir: string): ImageFile[] {
     }));
 }
 
-function mapAnalysisToCampaign(analysis: GeminiAnalysis, s3Url: string) {
+/**
+ * Groups images by their base name. Images like:
+ * - imgXXX-0.jpeg, imgXXX-1.jpeg, imgXXX-2.jpeg → grouped as "imgXXX"
+ * - imgYYY_0.png, imgYYY_1.png → grouped as "imgYYY"
+ * 
+ * Images without a sequence number (no dash/underscore + number) are treated as single-image campaigns.
+ */
+function groupImagesByBaseName(imageFiles: ImageFile[]): ImageGroup[] {
+  const groups = new Map<string, ImageFile[]>();
+
+  for (const imageFile of imageFiles) {
+    const nameWithoutExt = path.basename(imageFile.name, path.extname(imageFile.name));
+    
+    // Try to match pattern: baseName-dash/underscore-number
+    // Examples: "imgXXX-0", "imgYYY_1", "campaign-2"
+    const match = nameWithoutExt.match(/^(.+)[-_](\d+)$/);
+    
+    if (match) {
+      // Has sequence number - group by base name
+      const baseName = match[1];
+      if (!groups.has(baseName)) {
+        groups.set(baseName, []);
+      }
+      groups.get(baseName)!.push(imageFile);
+    } else {
+      // No sequence number - treat as single-image campaign
+      // Use the full name as the base name
+      if (!groups.has(nameWithoutExt)) {
+        groups.set(nameWithoutExt, []);
+      }
+      groups.get(nameWithoutExt)!.push(imageFile);
+    }
+  }
+
+  // Sort images within each group by sequence number (if present)
+  const result: ImageGroup[] = [];
+  for (const [baseName, images] of groups.entries()) {
+    // Sort by filename to ensure consistent order (imgXXX-0 before imgXXX-1)
+    images.sort((a, b) => a.name.localeCompare(b.name));
+    result.push({ baseName, images });
+  }
+
+  return result;
+}
+
+function mapAnalysisToCampaign(analysis: GeminiAnalysis, s3Urls: string[]) {
   return {
     company: analysis.company,
     brand: analysis.brand,
@@ -40,26 +92,30 @@ function mapAnalysisToCampaign(analysis: GeminiAnalysis, s3Url: string) {
     imagery_visual_style: analysis.imagery.visual_style,
     imagery_primary_subject: analysis.imagery.primary_subject,
     imagery_demographics: analysis.imagery.demographics,
-    image_s3_url: s3Url,
+    image_s3_urls: s3Urls,
     capture_date: new Date().toISOString().split('T')[0], // Today's date as default
   };
 }
 
-async function processImage(imageFile: ImageFile) {
-  console.log(`\nProcessing ${imageFile.name}...`);
+async function processImageGroup(imageGroup: ImageGroup) {
+  const imageNames = imageGroup.images.map(img => img.name).join(', ');
+  console.log(`\nProcessing campaign group "${imageGroup.baseName}" (${imageGroup.images.length} image(s)): ${imageNames}`);
 
   try {
-    // Step 1: Analyze image with Gemini
-    console.log('  → Analyzing image with Gemini...');
-    const analysis = await analyzeImage(imageFile.path);
+    // Step 1: Analyze all images together with Gemini
+    console.log('  → Analyzing images with Gemini...');
+    const imagePaths = imageGroup.images.map(img => img.path);
+    const analysis = await analyzeImage(imagePaths);
 
-    // Step 2: Upload to S3
-    console.log('  → Uploading to S3...');
-    const s3Url = await uploadToS3(imageFile.path);
+    // Step 2: Upload all images to S3
+    console.log('  → Uploading images to S3...');
+    const s3Urls = await Promise.all(
+      imageGroup.images.map(img => uploadToS3(img.path))
+    );
 
     // Step 3: Insert campaign into database
     console.log('  → Inserting campaign into database...');
-    const campaignData = mapAnalysisToCampaign(analysis, s3Url);
+    const campaignData = mapAnalysisToCampaign(analysis, s3Urls);
 
     const { data: campaign, error: campaignError } = await supabaseAdmin
       .from('campaigns')
@@ -100,20 +156,24 @@ async function processImage(imageFile: ImageFile) {
       throw new Error(`Failed to insert vectors: ${vectorError.message}`);
     }
 
-    console.log(`  ✓ Successfully processed ${imageFile.name}`);
-    return { success: true, campaignId: campaign.id };
+    console.log(`  ✓ Successfully processed campaign "${imageGroup.baseName}" with ${imageGroup.images.length} image(s)`);
+    return { success: true, campaignId: campaign.id, imageCount: imageGroup.images.length };
   } catch (error) {
-    console.error(`  ✗ Error processing ${imageFile.name}:`, error);
+    console.error(`  ✗ Error processing campaign "${imageGroup.baseName}":`, error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
 
 async function run() {
   console.log('Starting image ingestion...\n');
+  console.log(`📁 Processing directory: ${IMAGE_DIR}\n`);
 
   // Check if images directory exists
   if (!fs.existsSync(IMAGE_DIR)) {
     console.error(`Error: Images directory "${IMAGE_DIR}" does not exist.`);
+    console.error(`\nUsage: npm run ingest [directory]`);
+    console.error(`Example: npm run ingest images/test`);
+    console.error(`Example: npm run ingest images`);
     process.exit(1);
   }
 
@@ -128,11 +188,20 @@ async function run() {
 
   console.log(`Found ${imageFiles.length} image file(s) to process.\n`);
 
-  // Process each image
+  // Group images by base name
+  const imageGroups = groupImagesByBaseName(imageFiles);
+  console.log(`Grouped into ${imageGroups.length} campaign(s).\n`);
+
+  // Process each image group
   const results = [];
-  for (const imageFile of imageFiles) {
-    const result = await processImage(imageFile);
-    results.push({ file: imageFile.name, ...result });
+  for (const imageGroup of imageGroups) {
+    const result = await processImageGroup(imageGroup);
+    results.push({ 
+      baseName: imageGroup.baseName, 
+      imageCount: imageGroup.images.length,
+      images: imageGroup.images.map(img => img.name),
+      ...result 
+    });
   }
 
   // Summary
@@ -141,16 +210,18 @@ async function run() {
   console.log('='.repeat(50));
   const successful = results.filter((r) => r.success).length;
   const failed = results.filter((r) => !r.success).length;
-  console.log(`Total: ${results.length}`);
-  console.log(`Successful: ${successful}`);
-  console.log(`Failed: ${failed}`);
+  const totalImages = results.reduce((sum, r) => sum + (r.imageCount || 0), 0);
+  console.log(`Total campaigns: ${results.length}`);
+  console.log(`Total images: ${totalImages}`);
+  console.log(`Successful campaigns: ${successful}`);
+  console.log(`Failed campaigns: ${failed}`);
 
   if (failed > 0) {
-    console.log('\nFailed files:');
+    console.log('\nFailed campaigns:');
     results
       .filter((r) => !r.success)
       .forEach((r) => {
-        console.log(`  - ${r.file}: ${r.error}`);
+        console.log(`  - ${r.baseName} (${r.imageCount} image(s)): ${r.error}`);
       });
   }
 

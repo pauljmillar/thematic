@@ -4,7 +4,7 @@ import fs from 'fs';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export const GEMINI_PROMPT = `
-You are analyzing a marketing campaign image for a credit card.
+You are analyzing marketing campaign images for a credit card. These images form a single campaign and should be analyzed together as a cohesive unit.
 
 Return ONLY valid JSON matching the schema below.
 
@@ -72,27 +72,35 @@ export interface GeminiAnalysis {
   };
 }
 
-export async function analyzeImage(imagePath: string): Promise<GeminiAnalysis> {
+/**
+ * Analyzes a single image or multiple images that form a single campaign.
+ * When multiple images are provided, they are analyzed together as a cohesive unit.
+ */
+export async function analyzeImage(imagePath: string | string[]): Promise<GeminiAnalysis> {
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
 
-  // Read image file
-  const imageData = fs.readFileSync(imagePath);
-  const base64Image = imageData.toString('base64');
+  const imagePaths = Array.isArray(imagePath) ? imagePath : [imagePath];
 
-  // Get file extension
-  const ext = imagePath.split('.').pop()?.toLowerCase() || 'png';
-  const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+  // Prepare image data for all images
+  const imageParts = imagePaths.map((path) => {
+    const imageData = fs.readFileSync(path);
+    const base64Image = imageData.toString('base64');
+    const ext = path.split('.').pop()?.toLowerCase() || 'png';
+    const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+    
+    return {
+      inlineData: {
+        data: base64Image,
+        mimeType,
+      },
+    };
+  });
 
   try {
-    const result = await model.generateContent([
-      GEMINI_PROMPT,
-      {
-        inlineData: {
-          data: base64Image,
-          mimeType,
-        },
-      },
-    ]);
+    // Build content array: prompt first, then all images
+    const content = [GEMINI_PROMPT, ...imageParts];
+    
+    const result = await model.generateContent(content);
 
     const response = result.response;
     const text = response.text();
@@ -114,7 +122,7 @@ export async function analyzeImage(imagePath: string): Promise<GeminiAnalysis> {
 
     return analysis;
   } catch (error) {
-    console.error('Error analyzing image with Gemini:', error);
-    throw new Error(`Failed to analyze image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error('Error analyzing image(s) with Gemini:', error);
+    throw new Error(`Failed to analyze image(s): ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

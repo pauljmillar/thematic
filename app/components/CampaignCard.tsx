@@ -26,10 +26,10 @@ const SENTIMENT_COLORS: Record<string, string> = {
 export default function CampaignCard({ campaign }: CampaignCardProps) {
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-      {campaign.image_s3_url && (
+      {campaign.image_s3_urls && campaign.image_s3_urls.length > 0 && (
         <div className="relative w-full h-48 bg-gray-100">
           <Image
-            src={campaign.image_s3_url}
+            src={campaign.image_s3_urls[0]}
             alt={campaign.offer || 'Campaign image'}
             fill
             className="object-cover"

@@ -33,7 +33,7 @@ create table if not exists campaigns (
   spend numeric(12,2),
 
   capture_date date,
-  image_s3_url text,
+  image_s3_urls text[],
 
   created_at timestamptz default now()
 );

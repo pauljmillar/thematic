@@ -34,7 +34,7 @@ export interface Campaign {
   volume: number | null;
   spend: number | null;
   capture_date: string | null;
-  image_s3_url: string | null;
+  image_s3_urls: string[] | null;
   created_at: string;
 }
 
