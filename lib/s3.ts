@@ -73,7 +73,8 @@ export async function uploadToS3(imagePath: string): Promise<string> {
       Key: fileName,
       Body: fileContent,
       ContentType: `image/${ext.slice(1).toLowerCase() === 'jpg' ? 'jpeg' : ext.slice(1).toLowerCase()}`,
-      ACL: 'public-read', // Make images publicly accessible
+      // Note: ACL removed - bucket should use bucket policies for public access
+      // If your bucket has ACLs enabled, you can add: ACL: 'public-read'
     });
 
     await client.send(command);
@@ -97,13 +98,35 @@ export async function uploadToS3(imagePath: string): Promise<string> {
           `  5. There are no extra spaces or quotes in .env.local`
         );
       }
-      if (error.message.includes('bucket') || error.message.includes('Bucket')) {
+      if (error.message.includes('bucket') || error.message.includes('Bucket') || error.message.includes('ACL')) {
+        let additionalHelp = '';
+        if (error.message.includes('ACL')) {
+          additionalHelp = `\n\n💡 ACL Error Solution:\n` +
+            `Your bucket has ACLs disabled (common for newer buckets).\n` +
+            `To make images publicly accessible, add a bucket policy:\n\n` +
+            `1. Go to S3 Console → Your Bucket → Permissions → Bucket Policy\n` +
+            `2. Add this policy (replace 'your-bucket-name'):\n\n` +
+            `{\n` +
+            `  "Version": "2012-10-17",\n` +
+            `  "Statement": [\n` +
+            `    {\n` +
+            `      "Sid": "PublicReadGetObject",\n` +
+            `      "Effect": "Allow",\n` +
+            `      "Principal": "*",\n` +
+            `      "Action": "s3:GetObject",\n` +
+            `      "Resource": "arn:aws:s3:::your-bucket-name/*"\n` +
+            `    }\n` +
+            `  ]\n` +
+            `}\n\n` +
+            `3. Also ensure "Block public access" settings allow public access if needed.`;
+        }
         throw new Error(
           `S3 bucket error: ${error.message}\n` +
           `Please verify:\n` +
           `  1. AWS_S3_BUCKET_NAME is set correctly\n` +
           `  2. The bucket exists in the specified region\n` +
-          `  3. The credentials have access to this bucket`
+          `  3. The credentials have access to this bucket` +
+          additionalHelp
         );
       }
       throw new Error(`Failed to upload to S3: ${error.message}`);
