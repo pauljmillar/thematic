@@ -1,12 +1,25 @@
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
+// Lazy-load the OpenAI client to ensure env vars are loaded first
+let openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!openai) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is not set');
+    }
+    openai = new OpenAI({
+      apiKey,
+    });
+  }
+  return openai;
+}
 
 export async function embedText(text: string): Promise<number[]> {
   try {
-    const response = await openai.embeddings.create({
+    const client = getOpenAIClient();
+    const response = await client.embeddings.create({
       model: 'text-embedding-3-small',
       input: text,
     });

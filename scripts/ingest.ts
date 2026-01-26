@@ -13,10 +13,15 @@ if (fsNode.existsSync(envPath)) {
   }
   // Verify key is loaded
   if (!process.env.OPENAI_API_KEY) {
-    console.error('Warning: OPENAI_API_KEY not found in .env.local');
+    console.error('❌ Error: OPENAI_API_KEY not found in .env.local');
+    console.error(`   Checked path: ${envPath}`);
+    process.exit(1);
+  } else {
+    console.log('✅ Environment variables loaded successfully');
+    console.log(`   OPENAI_API_KEY: ${process.env.OPENAI_API_KEY.substring(0, 20)}...`);
   }
 } else {
-  console.error(`Error: .env.local not found at ${envPath}`);
+  console.error(`❌ Error: .env.local not found at ${envPath}`);
   process.exit(1);
 }
 
