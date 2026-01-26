@@ -34,6 +34,11 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
             fill
             className="object-cover"
             unoptimized
+            onError={(e) => {
+              console.error('Image failed to load:', campaign.image_s3_urls[0]);
+              // Fallback: hide the image container on error
+              e.currentTarget.style.display = 'none';
+            }}
           />
         </div>
       )}
