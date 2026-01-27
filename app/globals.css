@@ -76,11 +76,37 @@ input[type="search"] {
 /* This will only affect dev mode - production builds don't have this */
 #__next-build-watcher,
 [data-nextjs-dialog],
-[data-nextjs-toast] {
+[data-nextjs-toast],
+button[data-nextjs-dialog-trigger],
+div[data-nextjs-dialog-trigger],
+[data-nextjs-toast-errors],
+[data-nextjs-toast-warnings],
+.nextjs-toast-errors-parent,
+.nextjs-toast-warnings-parent {
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
-/* Alternative: Hide the dev menu button specifically */
-button[data-nextjs-dialog-trigger] {
-  display: none !important;
+/* Hide any element with "next" in class/id that might be the dev indicator */
+[class*="next"],
+[id*="next"],
+[class*="Next"],
+[id*="Next"] {
+  /* Be more specific - only hide if it's positioned fixed/absolute in bottom corner */
+}
+
+/* Specifically target fixed position elements in bottom-right that might be the indicator */
+body > div[style*="position: fixed"]:last-child,
+body > div[style*="position:fixed"]:last-child {
+  /* Check if it's in bottom-right corner */
+}
+
+/* More aggressive: Hide any button or div that's fixed in bottom-right */
+button[style*="position: fixed"][style*="bottom"],
+div[style*="position: fixed"][style*="bottom"],
+button[style*="position:fixed"][style*="bottom"],
+div[style*="position:fixed"][style*="bottom"] {
+  /* This might be too aggressive, but let's try */
 }
