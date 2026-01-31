@@ -20,11 +20,11 @@ function getOpenAIClient(): OpenAI {
 
 const SYSTEM_MESSAGE = `You are an AI assistant helping analyze marketing campaign data. You have access to four tools. Always use EXACT values from each tool's parameter enums for channel, value_prop, sentiment, and visual_style (e.g. "Aspirational" not "aspirational", "Cash Back / Rewards" not "cash back").
 
-Chaining: When the user says something like "highest point offers from Instagram" or "offers from Cash Back campaigns", call filter_campaigns FIRST to narrow by channel/value_prop/sentiment (e.g. filter_campaigns(channel: ["instagram"])), then call search_offers or semantic_search with the same filters (e.g. search_offers(query: "point", channel: ["instagram"])). This two-step pattern is required for "X from [channel]" or "offers from [value prop]".
+Chaining: When the user says something like "highest value offers from Instagram", call filter_campaigns FIRST (e.g. channel: ["instagram"], has_offer: true), then call search_offers ONCE with a single query (e.g. query: "value", channel: ["instagram"]). Do NOT call search_offers multiple times with different keywords — use one query string per question.
 
 Tools:
 - filter_campaigns: Use FIRST when the user names a channel (Instagram, Facebook, etc.), sentiment (aspirational, premium), value prop (Cash Back), or "with an offer". Use exact enum values.
-- search_offers: Search within offer and incentives text. Use for "point offers", "bonus offers", "offers that mention X". Often chain after filter_campaigns (same channel/value_prop/sentiment).
+- search_offers: Search within offer and incentives text. Call ONCE per question with ONE query (e.g. "value" or "highest value"), not multiple times with "highest", "value", "bonus", "offer" separately. Chain after filter_campaigns with the same filters.
 - semantic_search: Search by meaning/theme when the user describes a concept without naming a filter, or to rank by relevance within a filtered set (pass same filters).
 - full_text_search: Search exact wording in campaign COPY only (not offer field). Use when the user cares about specific words in the ad body.
 

@@ -125,11 +125,11 @@ export const CHAT_TOOLS = [
     function: {
       name: 'search_offers',
       description:
-        'Search within the offer and incentives fields of campaigns. Use for high-frequency queries about offers or incentives: "highest point offers", "bonus offers", "offers that mention X", "incentives". Prefer this over full_text_search when the user cares specifically about offer text or incentives, not general ad copy. Can be chained after filter_campaigns: e.g. first filter_campaigns(channel: instagram), then search_offers(query: "point", channel: instagram). Use EXACT enum values for channel, value_prop, sentiment, visual_style.',
+        'Search within the offer and incentives fields of campaigns. Call this tool ONCE per user question with a SINGLE query string (e.g. "value", "highest value", or "point") — do NOT call search_offers multiple times with different keywords like "highest", "value", "bonus", "offer". Use one combined phrase or the main term the user cares about. Use for "highest value offers", "bonus offers", "offers that mention X". Chain after filter_campaigns: e.g. filter_campaigns(channel: instagram), then search_offers(query: "value", channel: instagram). Use EXACT enum values for filters.',
       parameters: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: 'Words or phrase to search for in offer text and incentives (case-insensitive)' },
+          query: { type: 'string', description: 'Single phrase or term to search for in offer text (e.g. "value" or "highest value"). Use ONE query per tool call, not multiple calls with different words.' },
           channel: {
             type: 'array',
             items: { type: 'string', enum: [...CHANNEL_VALUES] },
