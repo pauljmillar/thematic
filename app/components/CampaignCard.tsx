@@ -5,6 +5,7 @@ import { getProxyImageUrl } from '@/lib/image-proxy';
 
 interface CampaignCardProps {
   campaign: Campaign;
+  onClick?: () => void;
 }
 
 const CHANNEL_COLORS: Record<string, string> = {
@@ -23,13 +24,16 @@ const SENTIMENT_COLORS: Record<string, string> = {
   Premium: 'bg-purple-100 text-purple-800',
 };
 
-export default function CampaignCard({ campaign }: CampaignCardProps) {
+export default function CampaignCard({ campaign, onClick }: CampaignCardProps) {
   const proxyUrl = campaign.image_s3_urls && campaign.image_s3_urls.length > 0 
     ? getProxyImageUrl(campaign.image_s3_urls[0])
     : null;
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+    <div
+      className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden cursor-pointer"
+      onClick={onClick}
+    >
       {proxyUrl && (
         <div className="relative w-full h-48 bg-gray-100 overflow-hidden">
           <img

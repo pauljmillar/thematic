@@ -20,7 +20,7 @@ export async function executeQuery(plan: QueryPlan): Promise<QueryResult> {
   }
 }
 
-async function executeVectorSearch(plan: QueryPlan): Promise<QueryResult> {
+export async function executeVectorSearch(plan: QueryPlan): Promise<QueryResult> {
   const { vectorField = 'value_prop_embedding', queryEmbedding, filters } = plan;
 
   if (!queryEmbedding) {
@@ -91,7 +91,7 @@ async function executeVectorSearch(plan: QueryPlan): Promise<QueryResult> {
   };
 }
 
-async function executeAggregation(plan: QueryPlan): Promise<QueryResult> {
+export async function executeAggregation(plan: QueryPlan): Promise<QueryResult> {
   const { aggregation, filters } = plan;
 
   if (!aggregation) {
@@ -171,7 +171,7 @@ async function executeAggregation(plan: QueryPlan): Promise<QueryResult> {
   };
 }
 
-async function executeFilteredQuery(plan: QueryPlan): Promise<QueryResult> {
+export async function executeFilteredQuery(plan: QueryPlan): Promise<QueryResult> {
   const { filters } = plan;
 
   let query = supabaseAdmin.from('campaigns').select('*').limit(50);

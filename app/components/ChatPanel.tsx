@@ -10,9 +10,10 @@ interface Message {
 interface ChatPanelProps {
   onQuery: (message: string) => Promise<void>;
   isLoading: boolean;
+  llmResponse?: string;
 }
 
-export default function ChatPanel({ onQuery, isLoading }: ChatPanelProps) {
+export default function ChatPanel({ onQuery, isLoading, llmResponse }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -31,6 +32,20 @@ export default function ChatPanel({ onQuery, isLoading }: ChatPanelProps) {
     scrollToBottom();
   }, [messages]);
 
+  // Add LLM response to messages when it arrives
+  useEffect(() => {
+    if (llmResponse && !isLoading) {
+      setMessages((prev) => {
+        // Check if we already added this response (avoid duplicates)
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage?.role === 'assistant' && lastMessage.content === llmResponse) {
+          return prev;
+        }
+        return [...prev, { role: 'assistant', content: llmResponse }];
+      });
+    }
+  }, [llmResponse, isLoading]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -41,6 +56,7 @@ export default function ChatPanel({ onQuery, isLoading }: ChatPanelProps) {
 
     try {
       await onQuery(userMessage);
+      // LLM response will be added via useEffect when it arrives
     } catch (error) {
       setMessages((prev) => [
         ...prev,

@@ -121,7 +121,7 @@ async function verifyIngestion() {
         console.log(`\n   Campaign: ${campaign.company || 'Unknown'} - ${campaign.brand || 'Unknown'}`);
         if (campaign.image_s3_urls && campaign.image_s3_urls.length > 0) {
           console.log(`   Images (${campaign.image_s3_urls.length}):`);
-          campaign.image_s3_urls.forEach((url, idx) => {
+          campaign.image_s3_urls.forEach((url: string, idx: number) => {
             console.log(`      ${idx + 1}. ${url.substring(0, 60)}...`);
           });
         } else {

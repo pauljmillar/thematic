@@ -49,6 +49,14 @@ create table if not exists campaign_vectors (
   primary key (campaign_id)
 );
 
+-- Full-text search: generated column and GIN index for campaign copy
+alter table campaigns
+  add column if not exists text_search_vector tsvector
+  generated always as (
+    to_tsvector('english', coalesce(campaign_text, '') || ' ' || coalesce(full_campaign_text, ''))
+  ) stored;
+create index if not exists idx_campaigns_text_search on campaigns using gin(text_search_vector);
+
 -- Indexes for performance
 create index if not exists idx_campaigns_channel on campaigns(channel);
 create index if not exists idx_campaigns_capture_date on campaigns(capture_date);
@@ -103,5 +111,26 @@ begin
     and (filter_value_props is null or c.key_value_props && filter_value_props)
   order by similarity desc
   limit match_count;
+end;
+$$;
+
+-- Full-text search: search campaign copy by words/phrases
+create or replace function search_campaigns_by_text(
+  query_text text,
+  limit_count int default 50,
+  filter_channels text[] default null
+)
+returns setof campaigns
+language plpgsql
+as $$
+begin
+  return query
+  select c.*
+  from campaigns c
+  where
+    c.text_search_vector @@ plainto_tsquery('english', query_text)
+    and (filter_channels is null or c.channel = any(filter_channels))
+  order by ts_rank(c.text_search_vector, plainto_tsquery('english', query_text)) desc
+  limit limit_count;
 end;
 $$;

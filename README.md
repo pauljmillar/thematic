@@ -4,9 +4,9 @@ A web application that analyzes image-based marketing campaigns for credit cards
 
 ## Quick Links
 
+- **[Progress Checklist](docs/PROGRESS.md)** - Track setup progress and see what's next ⭐
 - **[Setup Guide](docs/SETUP.md)** - Step-by-step setup instructions
 - **[Architecture](docs/ARCHITECTURE.md)** - System design and component overview
-- **[Full Documentation](docs/README.md)** - Complete documentation
 
 ## Quick Start
 
