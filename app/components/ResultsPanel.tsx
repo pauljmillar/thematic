@@ -14,7 +14,8 @@ interface ResultsPanelProps {
   activeFilters: ActiveFilters;
   onFiltersChange: (filters: ActiveFilters) => void;
   onReset: () => void;
-  debugLog: string;
+  onToggleDebug: () => void;
+  debugPaneVisible: boolean;
   onCampaignClick?: (campaign: Campaign) => void;
 }
 
@@ -27,7 +28,8 @@ export default function ResultsPanel({
   activeFilters,
   onFiltersChange,
   onReset,
-  debugLog,
+  onToggleDebug,
+  debugPaneVisible,
   onCampaignClick,
 }: ResultsPanelProps) {
   const hasActiveFilters = Object.keys(activeFilters).length > 0;
@@ -42,7 +44,8 @@ export default function ResultsPanel({
           activeFilters={activeFilters}
           onFiltersChange={onFiltersChange}
           onReset={onReset}
-          debugLog={debugLog}
+          onToggleDebug={onToggleDebug}
+          debugPaneVisible={debugPaneVisible}
         />
       </div>
 

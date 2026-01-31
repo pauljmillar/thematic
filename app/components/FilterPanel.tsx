@@ -8,7 +8,8 @@ interface FilterPanelProps {
   activeFilters: ActiveFilters;
   onFiltersChange: (filters: ActiveFilters) => void;
   onReset: () => void;
-  debugLog: string;
+  onToggleDebug: () => void;
+  debugPaneVisible: boolean;
 }
 
 interface FilterPillProps {
@@ -17,61 +18,6 @@ interface FilterPillProps {
   isExpanded: boolean;
   onToggle: () => void;
   children: React.ReactNode;
-}
-
-interface DebugPillProps {
-  debugLog: string;
-  isExpanded: boolean;
-  onToggle: () => void;
-}
-
-function DebugPill({ debugLog, isExpanded, onToggle }: DebugPillProps) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number } | null>(null);
-
-  useEffect(() => {
-    if (!isExpanded || !buttonRef.current || typeof document === 'undefined') return;
-    const rect = buttonRef.current.getBoundingClientRect();
-    setDropdownRect({
-      top: rect.bottom + 4,
-      left: rect.left,
-    });
-  }, [isExpanded]);
-
-  return (
-    <div className="relative flex-shrink-0">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={onToggle}
-        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
-      >
-        <span>Debug</span>
-        <svg
-          className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {isExpanded && dropdownRect && typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            className="fixed z-[100] min-w-[320px] max-w-[480px] max-h-[400px] p-3 bg-gray-900 text-gray-100 text-xs font-mono rounded-lg shadow-lg overflow-hidden flex flex-col"
-            style={{ top: dropdownRect.top, left: dropdownRect.left }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="font-semibold text-gray-300 mb-2">Agent debug log</div>
-            <pre className="flex-1 overflow-y-auto whitespace-pre-wrap break-words overscroll-contain">
-              {debugLog || 'No debug output yet. Ask a question to see agent steps.'}
-            </pre>
-          </div>,
-          document.body
-        )}
-    </div>
-  );
 }
 
 function FilterPill({ label, hasSelection, isExpanded, onToggle, children }: FilterPillProps) {
@@ -130,7 +76,8 @@ export default function FilterPanel({
   activeFilters,
   onFiltersChange,
   onReset,
-  debugLog,
+  onToggleDebug,
+  debugPaneVisible,
 }: FilterPanelProps) {
   const [expandedPill, setExpandedPill] = useState<string | null>(null);
 
@@ -302,8 +249,19 @@ export default function FilterPanel({
           </button>
         </div>
 
-        {/* Debug pill */}
-        <DebugPill debugLog={debugLog} isExpanded={expandedPill === 'debug'} onToggle={() => setExpandedPill((p) => (p === 'debug' ? null : 'debug'))} />
+        {/* Debug pill: toggles 3rd pane visibility */}
+        <div className="flex-shrink-0">
+          <button
+            type="button"
+            onClick={onToggleDebug}
+            className={`
+              inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors
+              ${debugPaneVisible ? 'bg-indigo-100 text-indigo-800 border-indigo-300' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}
+            `}
+          >
+            <span>Debug</span>
+          </button>
+        </div>
       </div>
 
       {/* Click-outside overlay: below portaled dropdown (z-[100]) but above page content */}
