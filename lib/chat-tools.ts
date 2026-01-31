@@ -54,76 +54,56 @@ export function buildToolResult(campaigns: Campaign[]): ToolResult {
   };
 }
 
+// Exact values the DB accepts (use these in tool enums/descriptions)
+const CHANNEL_VALUES = ['facebook', 'instagram', 'twitter', 'email', 'direct_mail'] as const;
+const VALUE_PROP_VALUES = [
+  'No Fee / No Minimum',
+  'Cash Back / Rewards',
+  'Travel Benefits',
+  'High-Yield Savings',
+  'Credit Building',
+  'Security / Fraud Protection',
+] as const;
+const SENTIMENT_VALUES = ['Aspirational', 'Trust-Building', 'Urgent', 'Playful', 'Premium'] as const;
+const VISUAL_STYLE_VALUES = [
+  'Lifestyle Photography',
+  'Minimalist Graphic',
+  'Illustration',
+  'Product-Centric',
+  'Text-Heavy',
+  'Abstract / Conceptual',
+] as const;
+
 /** OpenAI function-calling tool definitions (compatible with chat.completions.create tools) */
 export const CHAT_TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'semantic_search',
-      description:
-        'Search campaigns by meaning. Use for concept-based queries like "travel benefits", "no fee offers", "campaigns about rewards". Choose embedding_field: value_prop_embedding for value/offers, copy_embedding for text/copy, visual_embedding for imagery/style.',
-      parameters: {
-        type: 'object',
-        properties: {
-          query: { type: 'string', description: 'Natural language search query' },
-          embedding_field: {
-            type: 'string',
-            enum: ['value_prop_embedding', 'copy_embedding', 'visual_embedding'],
-            description: 'Which embedding to search (default value_prop_embedding)',
-          },
-          channel: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Filter by channel: facebook, instagram, twitter, email, direct_mail',
-          },
-          value_prop: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Filter by value prop e.g. Cash Back / Rewards',
-          },
-          sentiment: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Filter by sentiment e.g. Aspirational, Premium',
-          },
-          visual_style: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Filter by visual style',
-          },
-        },
-        required: ['query'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
       name: 'filter_campaigns',
       description:
-        'Filter campaigns by structured database fields: channel, sentiment, value prop, visual style, date range, or whether they have an offer. Use when the user asks for specific dimensions (e.g. "Instagram campaigns", "aspirational", "Cash Back") or "what are the offers from recent Cash Back, Premium campaigns" (filter first, then answer from the result).',
+        'Filter campaigns by structured database fields. PREFER THIS when the user explicitly names a channel (e.g. Instagram, Facebook), sentiment (e.g. aspirational, premium), value prop (e.g. Cash Back), or "with an offer". Use EXACT values from the parameter enums. For questions like "X from Instagram" or "offers from Cash Back campaigns", call this FIRST to narrow by channel/value_prop/sentiment, then call search_offers or semantic_search on the result. Channel, value_prop, sentiment, and visual_style must use the exact strings listed in their enums.',
       parameters: {
         type: 'object',
         properties: {
           channel: {
             type: 'array',
-            items: { type: 'string' },
-            description: 'Filter by channel: facebook, instagram, twitter, email, direct_mail',
+            items: { type: 'string', enum: [...CHANNEL_VALUES] },
+            description: 'One or more of: facebook, instagram, twitter, email, direct_mail. Use exact value.',
           },
           value_prop: {
             type: 'array',
-            items: { type: 'string' },
-            description: 'Filter by value prop e.g. Cash Back / Rewards, Premium',
+            items: { type: 'string', enum: [...VALUE_PROP_VALUES] },
+            description: 'One or more of: No Fee / No Minimum, Cash Back / Rewards, Travel Benefits, High-Yield Savings, Credit Building, Security / Fraud Protection. Use exact value.',
           },
           sentiment: {
             type: 'array',
-            items: { type: 'string' },
-            description: 'Filter by sentiment e.g. Aspirational, Trust-Building, Premium',
+            items: { type: 'string', enum: [...SENTIMENT_VALUES] },
+            description: 'One or more of: Aspirational, Trust-Building, Urgent, Playful, Premium. Use exact value.',
           },
           visual_style: {
             type: 'array',
-            items: { type: 'string' },
-            description: 'Filter by visual style',
+            items: { type: 'string', enum: [...VISUAL_STYLE_VALUES] },
+            description: 'One or more of: Lifestyle Photography, Minimalist Graphic, Illustration, Product-Centric, Text-Heavy, Abstract / Conceptual. Use exact value.',
           },
           date_range: {
             type: 'object',
@@ -143,17 +123,92 @@ export const CHAT_TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'full_text_search',
+      name: 'search_offers',
       description:
-        'Search for exact words or phrases in campaign copy/text. Use when the user asks for campaigns that "mention X", "say Y", or contain specific wording.',
+        'Search within the offer and incentives fields of campaigns. Use for high-frequency queries about offers or incentives: "highest point offers", "bonus offers", "offers that mention X", "incentives". Prefer this over full_text_search when the user cares specifically about offer text or incentives, not general ad copy. Can be chained after filter_campaigns: e.g. first filter_campaigns(channel: instagram), then search_offers(query: "point", channel: instagram). Use EXACT enum values for channel, value_prop, sentiment, visual_style.',
       parameters: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: 'Words or phrase to search for in campaign text' },
+          query: { type: 'string', description: 'Words or phrase to search for in offer text and incentives (case-insensitive)' },
           channel: {
             type: 'array',
-            items: { type: 'string' },
-            description: 'Optional filter by channel',
+            items: { type: 'string', enum: [...CHANNEL_VALUES] },
+            description: 'Optional. One or more of: facebook, instagram, twitter, email, direct_mail.',
+          },
+          value_prop: {
+            type: 'array',
+            items: { type: 'string', enum: [...VALUE_PROP_VALUES] },
+            description: 'Optional. One or more value prop exact values.',
+          },
+          sentiment: {
+            type: 'array',
+            items: { type: 'string', enum: [...SENTIMENT_VALUES] },
+            description: 'Optional. One or more sentiment exact values.',
+          },
+          visual_style: {
+            type: 'array',
+            items: { type: 'string', enum: [...VISUAL_STYLE_VALUES] },
+            description: 'Optional. One or more visual style exact values.',
+          },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'semantic_search',
+      description:
+        'Search campaigns by meaning (embeddings), not exact words. PREFER this when the user describes a theme or concept (e.g. "travel benefits", "no fee", "rewards") without naming a specific filter value, or when combining a concept with optional filters. Use filter_campaigns FIRST when the user names a channel, sentiment, or value prop; then use semantic_search to rank by meaning within that set (pass the same channel/sentiment/value_prop). Choose embedding_field: value_prop_embedding for value/offers, copy_embedding for ad copy, visual_embedding for imagery/style. Use EXACT enum values for filter parameters.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Natural language search query (concept or theme)' },
+          embedding_field: {
+            type: 'string',
+            enum: ['value_prop_embedding', 'copy_embedding', 'visual_embedding'],
+            description: 'value_prop_embedding for value/offers, copy_embedding for text/copy, visual_embedding for imagery',
+          },
+          channel: {
+            type: 'array',
+            items: { type: 'string', enum: [...CHANNEL_VALUES] },
+            description: 'Optional. One or more of: facebook, instagram, twitter, email, direct_mail.',
+          },
+          value_prop: {
+            type: 'array',
+            items: { type: 'string', enum: [...VALUE_PROP_VALUES] },
+            description: 'Optional. One or more value prop exact values.',
+          },
+          sentiment: {
+            type: 'array',
+            items: { type: 'string', enum: [...SENTIMENT_VALUES] },
+            description: 'Optional. One or more sentiment exact values.',
+          },
+          visual_style: {
+            type: 'array',
+            items: { type: 'string', enum: [...VISUAL_STYLE_VALUES] },
+            description: 'Optional. One or more visual style exact values.',
+          },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'full_text_search',
+      description:
+        'Search for exact words or phrases in campaign COPY (campaign_text, full_campaign_text) — the main ad body text, NOT the offer field. Use when the user cares about specific wording in the ad copy (e.g. "that say APR", "mention limited time"). Use search_offers when they care about offer or incentives text; use semantic_search when they care about meaning/theme, not exact wording. Use EXACT enum value for channel if provided.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Exact words or phrase to search for in campaign copy' },
+          channel: {
+            type: 'array',
+            items: { type: 'string', enum: [...CHANNEL_VALUES] },
+            description: 'Optional. One or more of: facebook, instagram, twitter, email, direct_mail.',
           },
         },
         required: ['query'],
@@ -183,6 +238,14 @@ export interface FilterCampaignsParams {
 export interface FullTextSearchParams {
   query: string;
   channel?: string[];
+}
+
+export interface SearchOffersParams {
+  query: string;
+  channel?: string[];
+  value_prop?: string[];
+  sentiment?: string[];
+  visual_style?: string[];
 }
 
 export async function runSemanticSearch(
@@ -273,6 +336,48 @@ export async function runFullTextSearch(
   return buildToolResult(campaigns);
 }
 
+export async function runSearchOffers(
+  params: SearchOffersParams,
+  baseFilters?: ActiveFilters
+): Promise<ToolResult> {
+  const merged = mergeFilters(baseFilters ?? {}, {
+    channel: params.channel,
+    value_prop: params.value_prop,
+    sentiment: params.sentiment,
+    visual_style: params.visual_style,
+  });
+
+  let query = supabaseAdmin
+    .from('campaigns')
+    .select('*')
+    .not('offer', 'is', null)
+    .ilike('offer', `%${params.query}%`)
+    .limit(50);
+
+  if (merged.channel?.length) {
+    query = query.in('channel', merged.channel);
+  }
+  if (merged.value_prop?.length) {
+    query = query.overlaps('key_value_props', merged.value_prop);
+  }
+  if (merged.sentiment?.length) {
+    query = query.in('imagery_sentiment', merged.sentiment);
+  }
+  if (merged.visual_style?.length) {
+    query = query.in('imagery_visual_style', merged.visual_style);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.warn('Search offers failed:', error.message);
+    return buildToolResult([]);
+  }
+
+  const campaigns = (data ?? []) as Campaign[];
+  return buildToolResult(campaigns);
+}
+
 export function getToolRunner(
   name: string
 ): (params: Record<string, unknown>, baseFilters?: ActiveFilters) => Promise<ToolResult> {
@@ -286,6 +391,9 @@ export function getToolRunner(
     case 'full_text_search':
       return (params, baseFilters) =>
         runFullTextSearch(params as unknown as FullTextSearchParams, baseFilters);
+    case 'search_offers':
+      return (params, baseFilters) =>
+        runSearchOffers(params as unknown as SearchOffersParams, baseFilters);
     default:
       throw new Error(`Unknown tool: ${name}`);
   }

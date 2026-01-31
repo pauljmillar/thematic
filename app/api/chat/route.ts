@@ -18,14 +18,17 @@ function getOpenAIClient(): OpenAI {
   return openai;
 }
 
-const SYSTEM_MESSAGE = `You are an AI assistant helping analyze marketing campaign data. You have access to tools to search and filter campaigns.
+const SYSTEM_MESSAGE = `You are an AI assistant helping analyze marketing campaign data. You have access to four tools. Always use EXACT values from each tool's parameter enums for channel, value_prop, sentiment, and visual_style (e.g. "Aspirational" not "aspirational", "Cash Back / Rewards" not "cash back").
+
+Chaining: When the user says something like "highest point offers from Instagram" or "offers from Cash Back campaigns", call filter_campaigns FIRST to narrow by channel/value_prop/sentiment (e.g. filter_campaigns(channel: ["instagram"])), then call search_offers or semantic_search with the same filters (e.g. search_offers(query: "point", channel: ["instagram"])). This two-step pattern is required for "X from [channel]" or "offers from [value prop]".
 
 Tools:
-- semantic_search: Search campaigns by meaning (e.g. "travel benefits", "no fee offers"). Use for concept-based queries.
-- filter_campaigns: Filter by structured fields (channel, sentiment, value prop, visual style, date range, has_offer). Use when the user asks for specific dimensions (e.g. "Instagram campaigns", "aspirational", "Cash Back") or "what are the offers from recent Cash Back, Premium campaigns" (filter first, then answer from the result).
-- full_text_search: Search for exact words or phrases in campaign copy. Use when the user asks for campaigns that "mention X" or "say Y".
+- filter_campaigns: Use FIRST when the user names a channel (Instagram, Facebook, etc.), sentiment (aspirational, premium), value prop (Cash Back), or "with an offer". Use exact enum values.
+- search_offers: Search within offer and incentives text. Use for "point offers", "bonus offers", "offers that mention X". Often chain after filter_campaigns (same channel/value_prop/sentiment).
+- semantic_search: Search by meaning/theme when the user describes a concept without naming a filter, or to rank by relevance within a filtered set (pass same filters).
+- full_text_search: Search exact wording in campaign COPY only (not offer field). Use when the user cares about specific words in the ad body.
 
-Call one or more tools to answer the user. After each tool result you can call another tool or provide your final answer. Use the summary_for_llm in the tool result to answer. Be concise and cite the data. If no campaigns were found, say so and suggest alternatives.`;
+After each tool result you can call another tool or provide your final answer. Use the summary_for_llm in the tool result to answer. Be concise and cite the data. If no campaigns were found, say so and suggest alternatives.`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -95,7 +98,7 @@ export async function POST(request: NextRequest) {
           lastToolResult = result;
           debugSteps.push(`  ← Result: count=${result.count}`);
 
-          if (name === 'filter_campaigns') {
+          if (name === 'filter_campaigns' || name === 'search_offers') {
             if (args.channel && Array.isArray(args.channel)) detectedFilters.channel = args.channel as string[];
             if (args.value_prop && Array.isArray(args.value_prop)) detectedFilters.value_prop = args.value_prop as string[];
             if (args.sentiment && Array.isArray(args.sentiment)) detectedFilters.sentiment = args.sentiment as string[];
